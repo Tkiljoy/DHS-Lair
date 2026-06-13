@@ -1,21 +1,61 @@
 # DHS-Lair
 
-A local work-crew Lair for the FiveM script-store ops at DHS. Built on the
-ClaudeClaw V3 base (orchestrator + SQLite shared memory + kill switches +
-audit log + exfil guard + text war room). Five agents wrap the existing
-user-scope FiveM dev agents that already live under `[DHS]\.claude\`.
+A self-hosted, multi-agent orchestration platform that turns a single workstation into a coordinated "crew" of AI agents — with shared memory, hard safety rails, and a web war-room dashboard. Built to run real development and operations work for a software studio, locally and desk-only.
 
-**No Telegram. No Slack. No Discord.** Web dashboard only — desk-only.
+Think of it as a personal, security-conscious agent operating system: one router agent you talk to, several specialist agents it can delegate to, a shared memory layer so they don't forget context, and a set of kill switches and guards so the whole thing can't run away from you.
 
-## Agents
+---
 
-| Agent  | Role                                               |
-|--------|----------------------------------------------------|
-| nox    | Tkiljoy's primary personal-assistant companion. Default chat + router + war-room host. Visual: floating Evil Eye, persistent across all dashboard tabs. |
-| dev    | Receives `/assign <project> <task>`. Wraps `forge-master`, `forge-apprentice`, `quartermaster`, `project-architect`, `ui-architect`. |
-| review | Receives `/review <project>`. Wraps `forge-inspector`, `bridge-master`, `asset-librarian`. |
-| ideas  | Brainstorms scripts/features/store positioning. No code. |
-| ops    | Tebex / support backlog (stub for v1).             |
+## What this project demonstrates
+
+This repo is a working example of the kind of engineering these systems actually require in production:
+
+- **Multi-agent orchestration** — a router agent plus role-based specialist agents (dev, review, ideas, ops), each spawned as an isolated subprocess with its own tool allowlist.
+- **Agentic infrastructure** — auto-discovered agent configs and a skill registry (each skill is a self-contained folder with its own permissions), so new capabilities drop in without touching the core.
+- **Production safety judgment** — kill switches, an append-only audit log, an outbound exfil guard, and hard directory exclusions. The system can modify real project files, so it's built assuming that power needs guardrails.
+- **Shared persistent memory** — SQLite (WAL mode) with full-text search and an optional LLM-backed memory-extraction tier, so agents retain context across sessions.
+- **Pragmatic, local-first design** — no cloud dependency, no chat-bridge sprawl. One dashboard, one database file, runs on a desk.
+
+Stack: **Node 20+ · TypeScript · Fastify · SQLite (FTS5) · Claude CLI subprocesses · LLM memory extraction.**
+
+---
+
+## Architecture at a glance
+
+```
+You ──▶ Router agent (chat + war room)
+            │
+            ├──▶ dev agent     → spawns a sandboxed Claude subprocess in a project folder
+            ├──▶ review agent  → runs inspection / QA passes and returns a report
+            ├──▶ ideas agent   → brainstorms features & positioning (no code)
+            └──▶ ops agent      → support / backlog tasks
+                     │
+       Shared layer: SQLite memory · audit log · kill switches · exfil guard
+```
+
+Each agent is defined by a small config file and a declared tool allowlist. The orchestrator routes messages, hosts a "war room" where agents collaborate, and enforces the safety layer on every action.
+
+| Agent  | Role |
+| ------ | ---- |
+| router | Primary assistant + router + war-room host; persistent across the dashboard. |
+| dev    | Receives `/assign <project> <task>`; spawns a sandboxed subprocess to do real implementation work. |
+| review | Receives `/review <project>`; runs inspection, integration, and asset-audit passes. |
+| ideas  | Brainstorms features, scripts, and product positioning. No code. |
+| ops    | Support / operations backlog. |
+
+---
+
+## Safety model
+
+Because agents can write files and run commands inside real project directories, the safety layer is a first-class part of the design, not an afterthought:
+
+- **Kill switch** — flip a single env flag and the orchestrator refuses new agent work within ~2 seconds.
+- **Append-only audit log** — every action is recorded in SQLite for review.
+- **Exfil guard** — outbound text is regex-scanned for secret-shaped strings before it leaves.
+- **Hard exclusions** — sensitive directories are never read, enforced in code.
+- **Per-agent tool allowlists** — an agent only gets the tools its role declares (e.g. only `dev` gets write/exec).
+
+---
 
 ## Setup
 
@@ -25,100 +65,49 @@ npm run setup    # walks through .env, applies migrations
 npm start        # launches dashboard at http://127.0.0.1:7777/
 ```
 
-The setup wizard is re-runnable. It asks before overwriting `.env`.
+Requirements:
+- **Node 20+**
+- **`claude` CLI** on PATH (or set `CLAUDE_CLI` in `.env`)
+- *(Optional)* an LLM API key for the higher memory tier; without one, it runs on conversation history alone.
 
-You'll need:
+The setup wizard is re-runnable and asks before overwriting `.env`.
 
-- **Node 20+** (`node --version`)
-- **`claude` CLI** on PATH (or set `CLAUDE_CLI` in `.env` to its full path)
-- **Gemini API key** for Tier 2 memory extraction (free tier at
-  https://aistudio.google.com/app/apikey). Without one the Lair runs in
-  Tier 1 mode (conversation history only).
+---
 
-## Smoke test
-
-After `npm start`, open `http://127.0.0.1:7777/` and run:
-
-1. Send `nox`: "What's in DHS-Vault\01-Company\?" — verifies `dhs-vault-reader`.
-2. Send `nox`: "List projects in [DHS]." — verifies `dhs-resources` read.
-3. Send `dev`: `/assign DHS-Fishing add-rod-durability` — verifies subprocess
-   spawns in the project folder and forge-apprentice runs. **Don't commit.**
-4. Send `review`: `/review DHS-Fishing` — verifies forge-inspector +
-   bridge-master + asset-librarian return a report.
-5. Send `ideas`: "What's a low-effort FiveM script we haven't shipped?" —
-   verifies brainstorm without code.
-6. Send `/standup` — verifies all five agents respond.
-7. Flip `LLM_SPAWN_ENABLED=false` in `.env`, send another message —
-   verifies the kill switch refuses in ~2s. Flip back to `true`.
-8. Inspect `store/dhs.db`:
-
-   ```bash
-   sqlite3 store/dhs.db "SELECT * FROM audit_log ORDER BY ts DESC LIMIT 10;"
-   ```
-
-If steps 1–8 pass, the Lair is wired correctly.
-
-## Layout
+## Project layout
 
 ```
-agents/         five role-based agents (folders auto-discovered)
-  _template/    copy this to add a new agent
-skills/         auto-discovered skill folders
-  dhs-vault-reader/    RO access to C:\CORE\Business\DHS-Vault
-  dhs-resources/       RW access to [DHS]\<project> (per-agent perms)
-  tebex/               stub for v1
-  timezone/            US Eastern resolver
-src/            orchestrator (Node 20+, TypeScript)
-  index.ts             entry point
-  dashboard.ts         Fastify web UI
-  orchestrator.ts      routing + war room
-  agent.ts             spawns `claude` subprocesses
-  agent-config.ts      loads agents/<id>/agent.yaml
-  skill-registry.ts    loads skills/<id>/SKILL.md
-  memory.ts            Tier 2 (FTS5 + Gemini Flash extraction)
-  db.ts                SQLite (WAL, busy_timeout=5000)
-  kill-switches.ts     mtime-watching .env reader
-  audit-log.ts         append-only audit
-  exfil-guard.ts       regex scan on outbound text
-public/         static dashboard HTML/JS
-migrations/     numbered SQL files (idempotent)
-scripts/        setup.ts, migrate.ts
-store/          SQLite db (created on first migrate; gitignored)
-.env.example    every key the codebase reads, documented
+agents/        role-based agents (auto-discovered; copy _template/ to add one)
+skills/        auto-discovered skill folders, each with its own permissions
+src/           orchestrator (Node 20+, TypeScript)
+  index.ts            entry point
+  dashboard.ts        Fastify web UI
+  orchestrator.ts     routing + war room
+  agent.ts            spawns sandboxed subprocesses
+  skill-registry.ts   loads skills
+  memory.ts           persistent memory + LLM extraction
+  db.ts               SQLite (WAL, busy_timeout)
+  kill-switches.ts    env-watching safety reader
+  audit-log.ts        append-only audit
+  exfil-guard.ts      outbound text scan
+public/        static dashboard
+migrations/    numbered, idempotent SQL
+scripts/       setup + migrate
 ```
 
-## Hard exclusions (always)
+---
 
-- `C:\CORE\Business\Personal\` — never read
-- `C:\CORE\Business\District77-Vault\` — never read
-- Any `D77` or `District77` directory — never read
-- `[DHS]\.claude\` — never modify (the Lair delegates to it via `Agent` tool)
+## Roadmap
 
-## What's not in v1 (intentional defer)
+DHS-Lair is built in deliberate phases. Current build is the text-and-dashboard core; planned work extends it toward a full voice-driven assistant:
 
-- Telegram / Slack / Discord bridges
-- Voice (inbound, outbound, war room)
-- Tier 3 semantic memory (add via Power Pack 06)
-- Tebex live integration (skill is a stub until API key is wired)
-- Auto-assign classifier (use explicit `@agent` or `/assign`)
-- Suggestions feature (Pack 04 — needs 2-4 weeks of usage data)
+- **Voice I/O** — real-time speech in/out so the router agent works hands-free (JARVIS-style), layered on top of the existing orchestration core.
+- **Semantic memory tier** — embedding-based recall on top of the current full-text layer.
+- **Auto-routing classifier** — infer the right agent instead of explicit `/assign`.
+- **Live integrations** — replace stubbed service connectors with real APIs.
 
-## Power Packs
+---
 
-After the smoke test passes, paste **Pack 12 (backup)** from
-`C:\Users\tkilj\Downloads\POWER_PACKS_V3.md`. SQLite is single-file; backups
-are cheap insurance.
+## Status
 
-## Disclaimer
-
-The system spawns the `claude` CLI as a subprocess with whatever tool
-allowlist each agent's `agent.yaml` declares. `dev` has `Write`, `Edit`,
-`Bash`, and `Agent` — meaning it can change project files and run commands
-inside `[DHS]\<project>\`. Treat any project under `[DHS]\` as if it could
-be modified at any time the Lair is running.
-
-The exfil guard is regex-based. It will not catch every secret-shaped
-string. Don't paste live keys into the Lair.
-
-When in doubt, flip `LLM_SPAWN_ENABLED=false` in `.env`. The Lair will
-refuse new agent work in ~2 seconds. Flip back when ready.
+Active development. The orchestration core, agent system, shared memory, and full safety layer are working; voice and semantic memory are the next phases. Built and maintained solo.
