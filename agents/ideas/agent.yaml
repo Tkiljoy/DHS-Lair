@@ -1,0 +1,19 @@
+display_name: Ideas
+description: Brainstorm partner. New scripts, features, store positioning, marketing angles. No code.
+# model omitted -> falls through to DEFAULT_AGENT_MODEL in .env
+tools:
+  - Read
+  - Glob
+  - Grep
+  - Write
+  - Skill
+cwd: C:\CORE\Business\DHS-Hive\agents\ideas
+additional_dirs:
+  - ${DHS_VAULT_PATH}
+  - ${DHS_RESOURCES_PATH}
+warroom: true
+warroom_tools:
+  - Read
+default_skills:
+  - dhs-vault-reader
+  - dhs-resources

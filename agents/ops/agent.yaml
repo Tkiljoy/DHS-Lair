@@ -1,0 +1,15 @@
+display_name: Ops
+description: Operations aggregator. Tebex sales, support tickets, finance prompts. Stub for v1 until TEBEX_API_KEY is set.
+# model omitted -> falls through to DEFAULT_AGENT_MODEL in .env
+tools:
+  - Read
+  - Glob
+  - Grep
+  - Skill
+  - Bash
+cwd: C:\CORE\Business\DHS-Hive
+warroom: true
+warroom_tools:
+  - Read
+default_skills:
+  - tebex

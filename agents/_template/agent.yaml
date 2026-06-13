@@ -1,0 +1,17 @@
+display_name: Template Agent
+description: Copy this folder, rename, edit agent.yaml + CLAUDE.md.
+model: claude-sonnet-4-6
+# Tools the agent may call inside its `claude` subprocess.
+tools:
+  - Read
+  - Glob
+  - Grep
+# Working directory for the subprocess. Supports {project} substitution and ${ENV_VARS}.
+cwd: C:\CORE\Business\DHS-Hive
+# Whether this agent participates in /standup and /discuss.
+warroom: true
+# Tools allowed inside the war room (default-deny on side effects).
+warroom_tools:
+  - Read
+# Skills the agent should default to using.
+default_skills: []

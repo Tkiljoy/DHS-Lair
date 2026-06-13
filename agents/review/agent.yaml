@@ -1,0 +1,18 @@
+display_name: Review
+description: QA gate. Runs forge-inspector, bridge-master, asset-librarian against a project. Read-only; produces a report.
+# model omitted -> falls through to DEFAULT_AGENT_MODEL in .env
+tools:
+  - Read
+  - Glob
+  - Grep
+  - Agent
+  - Skill
+cwd: ${DHS_RESOURCES_PATH}\{project}
+additional_dirs:
+  - ${DHS_RESOURCES_PATH}
+  - ${DHS_VAULT_PATH}
+warroom: true
+warroom_tools:
+  - Read
+default_skills:
+  - dhs-resources

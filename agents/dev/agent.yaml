@@ -1,0 +1,24 @@
+display_name: Dev
+description: Script implementer. Receives /assign, cd's into the project, delegates to forge-master / forge-apprentice / project-architect / quartermaster / ui-architect.
+# model omitted -> falls through to DEFAULT_AGENT_MODEL in .env (controlled from Settings UI)
+tools:
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
+  - Bash
+  - Agent
+  - Skill
+  - WebFetch
+# {project} is substituted from /assign <project> <task>
+cwd: ${DHS_RESOURCES_PATH}\{project}
+additional_dirs:
+  - ${DHS_RESOURCES_PATH}
+  - ${DHS_VAULT_PATH}
+warroom: true
+warroom_tools:
+  - Read
+default_skills:
+  - dhs-resources
+  - dhs-vault-reader

@@ -1,0 +1,22 @@
+display_name: NØX
+description: Tkiljoy's primary personal-assistant overseer. Default chat. Routes work, reads project trackers, delegates to dev/review/forge-master, hosts /standup and /discuss.
+model: claude-opus-4-7
+tools:
+  - Read
+  - Glob
+  - Grep
+  - Bash
+  - Agent
+  - Skill
+cwd: C:\CORE\Business\DHS-Hive
+additional_dirs:
+  - ${DHS_VAULT_PATH}
+  - ${DHS_RESOURCES_PATH}
+warroom: true
+warroom_tools:
+  - Read
+  - Glob
+  - Grep
+default_skills:
+  - dhs-vault-reader
+  - dhs-resources

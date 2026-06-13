@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DHS-Lair</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <span class="status-dot" id="status-dot" title="connecting…"></span>
+    <h1>DHS · LAIR</h1>
+    <nav class="tabs">
+      <button class="tab active" data-view="chat">Chat</button>
+      <button class="tab" data-view="warroom">War Room</button>
+      <button class="tab" data-view="discussions">Team Chat</button>
+      <button class="tab" data-view="missions">Missions</button>
+      <button class="tab" data-view="hivemind">Pulse</button>
+      <button class="tab" data-view="suggestions">
+        Suggestions
+        <span class="badge" id="sugg-badge" hidden>0</span>
+      </button>
+      <button class="tab" data-view="settings">Settings</button>
+    </nav>
+    <div class="header-spacer"></div>
+    <button class="mode-switch" id="mode-switch" title="Toggle light/dark mode">DARK</button>
+  </header>
+
+  <!-- ─── CHAT VIEW ────────────────────────────────────────── -->
+  <section id="view-chat" class="view active">
+    <aside class="chat-agents">
+      <h2>Agents</h2>
+      <div id="agents"></div>
+      <div class="hint">
+        <strong>Direct chat with specialists.</strong> For routing, status, standups, brainstorming, or general talk &mdash; click the Eye, NOX is always there.<br><br>
+        <strong>Slash commands here:</strong><br>
+        <code>/assign &lt;project&gt; &lt;task&gt;</code> hand to dev<br>
+        <code>/review &lt;project&gt;</code> hand to review
+      </div>
+    </aside>
+    <main class="chat-main">
+      <div id="log"></div>
+      <form id="composer">
+        <div id="composer-attachments" class="attach-strip" hidden></div>
+        <textarea id="input" placeholder="Type a message. Paste/drop images. @agent, /assign, /review, /standup, /discuss supported."></textarea>
+        <input type="file" id="composer-file" accept="image/*" multiple hidden>
+        <button id="composer-attach" type="button" class="attach-btn" title="Attach image">📎</button>
+        <button id="send" type="submit">Send</button>
+      </form>
+    </main>
+    <div class="chat-side">
+      <h2>Recent activity</h2>
+      <input type="search" id="audit-search" class="filter-input filter-input-sm" placeholder="Filter activity…" autocomplete="off">
+      <div id="audit-side"></div>
+    </div>
+  </section>
+
+  <!-- ─── WAR ROOM VIEW ────────────────────────────────────── -->
+  <section id="view-warroom" class="view">
+    <div class="toolbar">
+      <button class="primary" id="wr-standup">/standup</button>
+      <button class="primary alt" id="wr-discuss">/discuss…</button>
+      <div class="header-spacer"></div>
+      <select id="wr-history">
+        <option value="">history…</option>
+      </select>
+    </div>
+    <div id="wr-meeting" class="wr-meeting">
+      <div class="empty">No meeting yet. Click /standup for a quick team status, or /discuss to ask the team a question.</div>
+    </div>
+  </section>
+
+  <!-- ─── TEAM DISCUSSIONS VIEW ────────────────────────────── -->
+  <section id="view-discussions" class="view">
+    <aside class="td-sidebar">
+      <div class="td-sidebar-head">
+        <h2>Threads</h2>
+        <button class="primary" id="td-new">+ New</button>
+      </div>
+      <div id="td-thread-list" class="td-thread-list"></div>
+      <div class="hint">
+        <strong>Team Chat.</strong> Persistent multi-agent threads. Different from War Room (one-shot consensus) — threads stay alive and you can keep going.<br><br>
+        <strong>@-mention</strong> any participant to direct the next reply (e.g. <code>@dev expand on point 2</code>). No mention = all participants speak.
+      </div>
+    </aside>
+    <main class="td-main">
+      <div id="td-thread-empty" class="empty">No thread selected. Click <strong>+ New</strong> to start one.</div>
+      <div id="td-thread-view" hidden>
+        <div class="td-thread-head">
+          <div>
+            <div class="td-thread-title" id="td-thread-title"></div>
+            <div class="td-thread-meta" id="td-thread-meta"></div>
+          </div>
+        </div>
+        <div id="td-turns" class="td-turns"></div>
+        <form id="td-composer" class="td-composer">
+          <textarea id="td-input" placeholder="Reply… use @agentid to direct the next turn (no mention = all participants reply)"></textarea>
+          <button id="td-send" type="submit">Send</button>
+        </form>
+      </div>
+    </main>
+  </section>
+
+  <!-- ─── MISSIONS VIEW ────────────────────────────────────── -->
+  <section id="view-missions" class="view">
+    <div class="toolbar">
+      <input type="search" id="mission-search" class="filter-input" placeholder="Filter by agent, status, or prompt text…" autocomplete="off">
+      <div class="header-spacer"></div>
+      <button class="primary" id="mission-new">+ New mission</button>
+    </div>
+    <div id="kanban" class="kanban"></div>
+  </section>
+
+  <!-- ─── HIVE MIND / PULSE VIEW (List / Graph / Brain toggle) ───── -->
+  <section id="view-hivemind" class="view">
+    <div class="toolbar">
+      <div class="hm-toggles">
+        <button class="hm-toggle active" data-hm="list">List</button>
+        <button class="hm-toggle" data-hm="graph">Graph</button>
+        <button class="hm-toggle" data-hm="brain">Brain</button>
+      </div>
+      <span class="muted">Cross-agent activity. Auto-refreshing.</span>
+      <div class="header-spacer"></div>
+      <button id="hm-refresh">Refresh</button>
+    </div>
+    <div id="hivemind-feed" class="hm-pane active"></div>
+    <div id="hivemind-graph" class="hm-pane">
+      <svg id="hm-graph-svg" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div id="hivemind-brain" class="hm-pane">
+      <div id="hm-brain-canvas"></div>
+    </div>
+  </section>
+
+  <!-- ─── SUGGESTIONS VIEW ─────────────────────────────────── -->
+  <section id="view-suggestions" class="view">
+    <div class="toolbar">
+      <button class="primary" id="sugg-run">Run now</button>
+      <select id="sugg-filter">
+        <option value="pending">Pending only</option>
+        <option value="all">All (incl. resolved)</option>
+      </select>
+      <select id="sugg-type-filter">
+        <option value="all">All types</option>
+        <option value="agent_overload">Agent overload</option>
+        <option value="stale_mission">Stale missions</option>
+      </select>
+      <span class="muted" id="sugg-runinfo"></span>
+      <div class="header-spacer"></div>
+      <span class="muted">Detectors: agent overload, stale missions. Runs every 24h.</span>
+    </div>
+    <div id="sugg-list" class="sugg-list"></div>
+  </section>
+
+  <!-- ─── SETTINGS VIEW ────────────────────────────────────── -->
+  <section id="view-settings" class="view">
+    <div class="settings-grid">
+      <div class="card">
+        <h2>Kill switches</h2>
+        <p class="muted">Hot-reload from <code>.env</code>. Changes propagate within ~2s.</p>
+        <div id="switches"></div>
+      </div>
+      <div class="card">
+        <h2>Paths</h2>
+        <div id="paths"></div>
+      </div>
+      <div class="card">
+        <h2>Memory tier</h2>
+        <div id="memory-status"></div>
+      </div>
+      <div class="card models-card">
+        <h2>Models</h2>
+        <p class="muted">Default model used by all agents that don't pin one explicitly. Per-agent overrides win when present.</p>
+        <div id="models-content"></div>
+      </div>
+      <div class="card usage-card">
+        <h2>Token usage &amp; cost</h2>
+        <p class="muted">Authoritative cost from Claude CLI. Gemini cost computed from list price (Flash 2.0). Subscription-billed work shows API list price as a reference, not what you pay.</p>
+        <div id="usage-grid"></div>
+      </div>
+      <div class="card">
+        <h2>Recent kill-switch flips</h2>
+        <div id="switch-history"></div>
+      </div>
+      <div class="card companions-card">
+        <h2>Companions</h2>
+        <p class="muted">The minds who shaped this workshop.</p>
+        <div id="companions"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── MODALS ───────────────────────────────────────────── -->
+  <div id="modal-discuss" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <h2>/discuss — ask the team</h2>
+      <label>Question for the team:</label>
+      <textarea id="discuss-text" rows="4" placeholder="e.g. 'should I refactor the inventory hooks before adding the new crafting feature?'"></textarea>
+      <div class="modal-buttons">
+        <button class="primary" id="discuss-go">Start discussion</button>
+        <button id="discuss-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-discussion-new" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <h2>New team discussion</h2>
+      <label>Title:</label>
+      <input id="td-new-title" type="text" placeholder="e.g. 'PrisonSim creator integration risks'">
+      <label>Participants:</label>
+      <div id="td-new-participants" class="td-participants"></div>
+      <label>Opening prompt (everyone selected will reply):</label>
+      <textarea id="td-new-prompt" rows="5" placeholder="Frame the question for the team. Be specific so the replies land on point."></textarea>
+      <div class="modal-buttons">
+        <button class="primary" id="td-new-go">Start thread</button>
+        <button id="td-new-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-mission" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <h2>New mission</h2>
+      <label>Assigned agent:</label>
+      <select id="mission-agent"></select>
+      <label>Prompt (what should the agent do?):</label>
+      <textarea id="mission-prompt" rows="6" placeholder="Be specific. Include project name if /assign-style work."></textarea>
+      <div class="modal-buttons">
+        <button class="primary" id="mission-create">Create</button>
+        <button id="mission-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-mission-detail" class="modal-overlay" hidden>
+    <div class="modal-card wide">
+      <div class="modal-header" id="mission-detail-header"></div>
+      <div class="modal-body" id="mission-detail-body"></div>
+      <div class="modal-buttons" id="mission-detail-actions"></div>
+    </div>
+  </div>
+
+  <!-- Persistent floating NOX presence (Evil Eye, every tab) -->
+  <div id="nox-shell" title="NØX — click to talk">
+    <div id="nox-halo" aria-hidden="true"></div>
+    <div id="nox-canvas"></div>
+    <span id="nox-unread-badge" aria-label="Unread messages from NØX"></span>
+  </div>
+
+  <!-- NOX chat panel (slides up from the Eye, persists across tabs) -->
+  <div id="nox-chat" hidden>
+    <header class="nox-chat-head">
+      <div class="nox-chat-title">
+        <span class="nox-chat-dot"></span>
+        <span class="nox-chat-name">NØX</span>
+        <span class="nox-chat-status" id="nox-chat-status">idle</span>
+      </div>
+      <button class="nox-chat-close" id="nox-chat-close" title="Close (Esc)" aria-label="Close">×</button>
+    </header>
+    <div class="nox-chat-log" id="nox-chat-log"></div>
+    <form class="nox-chat-composer" id="nox-chat-composer">
+      <div id="nox-chat-attachments" class="attach-strip" hidden></div>
+      <textarea id="nox-chat-input" rows="2" placeholder="Talk to NØX… (paste/drop images)"></textarea>
+      <input type="file" id="nox-chat-file" accept="image/*" multiple hidden>
+      <button id="nox-chat-attach" type="button" class="attach-btn" title="Attach image">📎</button>
+      <button class="primary" id="nox-chat-send" type="submit">Send</button>
+    </form>
+  </div>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
